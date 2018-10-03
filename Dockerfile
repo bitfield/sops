@@ -1,10 +1,12 @@
-FROM golang:1.8
+FROM golang:1.11-alpine AS build
 
-COPY . /go/src/go.mozilla.org/sops
-WORKDIR /go/src/go.mozilla.org/sops
+RUN apk add --update --no-cache git
+WORKDIR /src/
+COPY . /src/
+RUN cd /src/cmd/sops && CGO_ENABLED=0 go build -o /bin/sops
+RUN chmod +x /bin/sops
 
-RUN CGO_ENABLED=1 go build -a -o /bin/sops ./cmd/sops
-RUN apt-get update
-RUN apt-get install -y vim python-pip emacs
-RUN pip install awscli
-ENV EDITOR vim
+FROM scratch
+COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --from=build /bin/sops /bin/sops
+ENTRYPOINT ["/bin/sops"]
